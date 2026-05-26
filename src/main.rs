@@ -11,22 +11,41 @@ use url::Url;
 
 fn main() {
     let mut verbose = false;
+    let mut method = "GET".to_string();
+    let mut method_was_set = false;
+    let mut headers = Vec::new();
+    let mut data = None;
     let mut raw_url = None;
+    let mut args = env::args().skip(1);
 
-    for arg in env::args().skip(1) {
+    while let Some(arg) = args.next() {
         if arg == "-v" {
             verbose = true;
+        } else if arg == "-X" {
+            let Some(value) = args.next() else {
+                print_usage_and_exit();
+            };
+            method = value;
+            method_was_set = true;
+        } else if arg == "-H" {
+            let Some(value) = args.next() else {
+                print_usage_and_exit();
+            };
+            headers.push(value);
+        } else if arg == "-d" {
+            let Some(value) = args.next() else {
+                print_usage_and_exit();
+            };
+            data = Some(value);
         } else if raw_url.is_none() {
             raw_url = Some(arg);
         } else {
-            eprintln!("usage: gurl [-v] <url>");
-            process::exit(1);
+            print_usage_and_exit();
         }
     }
 
     let Some(raw_url) = raw_url else {
-        eprintln!("usage: gurl [-v] <url>");
-        process::exit(1);
+        print_usage_and_exit();
     };
 
     let url = match Url::parse(&raw_url) {
@@ -48,7 +67,11 @@ fn main() {
         }
     };
 
-    let request = url.get_request();
+    if data.is_some() && !method_was_set {
+        method = "POST".to_string();
+    }
+
+    let request = url.get_request(&method, &headers, data.as_deref());
 
     if verbose {
         print_verbose_message(">", &request);
@@ -93,4 +116,9 @@ fn print_verbose_message(prefix: &str, message: &str) {
         println!("{prefix} {line}");
     }
     println!("{prefix}");
+}
+
+fn print_usage_and_exit() -> ! {
+    eprintln!("usage: gurl [-v] [-X <method>] [-H <header>] [-d <data>] <url>");
+    process::exit(1);
 }
