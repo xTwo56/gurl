@@ -57,7 +57,10 @@ impl Url {
             format!("{}:{}", self.host, self.port)
         };
 
-        format!("GET {} HTTP/1.1\r\nHost: {}\r\n\r\n", self.path, host)
+        format!(
+            "GET {} HTTP/1.1\r\nHost: {}\r\nAccept: */*\r\nConnection: close\r\n\r\n",
+            self.path, host
+        )
     }
 }
 
@@ -96,5 +99,15 @@ mod tests {
         let error = Url::parse("https://rom.com").unwrap_err();
 
         assert_eq!(error, "unsupported protocol: https");
+    }
+
+    #[test]
+    fn builds_get_request_with_close_header() {
+        let url = Url::parse("http://rom.com/docs").unwrap();
+
+        assert_eq!(
+            url.get_request(),
+            "GET /docs HTTP/1.1\r\nHost: rom.com\r\nAccept: */*\r\nConnection: close\r\n\r\n"
+        );
     }
 }
